@@ -1,3 +1,4 @@
+use std::io::Read;
 use std::vec::Vec;
 
 pub struct Config {
@@ -19,9 +20,11 @@ pub fn plot(series: Vec<f64>, mut config: Config) -> String {
 
     let interval = (max - min).abs();
     if config.height <= 0 {
-        config.height = interval as u32 * ((-interval.log10().ceil()) as u32).pow(10);
-    } else {
-        config.height = interval as u32;
+        if interval as i32 <= 0 {
+            config.height = (interval as i32 * 10i32.pow(-interval.log10().ceil() as u32)) as u32;
+        } else {
+            config.height = interval as u32;
+        }
     }
 
     if config.offset <= 0 {
@@ -40,14 +43,14 @@ pub fn plot(series: Vec<f64>, mut config: Config) -> String {
     let int_min2 = min2 as i32;
     let int_max2 = max2 as i32;
 
-    let rows = ((int_max2 - int_max2) as f64).abs() as i32;
+    let rows = ((int_max2 - int_min2) as f64).abs() as i32;
     let width = series_inner.len() + config.offset as usize;
 
     let mut plot: Vec<Vec<String>> = Vec::new();
 
     for i in 0..rows + 1 {
         let mut line = Vec::<String>::new();
-        for j in 0..width + 1 {
+        for j in 0..width {
             line.push(" ".to_string());
         }
         plot.push(line);
@@ -82,12 +85,12 @@ pub fn plot(series: Vec<f64>, mut config: Config) -> String {
         };
         let label = format!(
             "{number:LW$.PREC$}",
-            LW = max_label_width,
+            LW = max_label_width + 1,
             PREC = precision as usize,
             number = magnitude
         );
         let w = (y - int_min2) as usize;
-        let h = f64::max((config.offset - label.len() as u32) as f64, 0f64) as usize;
+        let h = f64::max(config.offset as f64 - label.len() as f64, 0f64) as usize;
         plot[w][h] = label;
         if y == 0 {
             plot[w][(config.offset - 1) as usize] = "┼".to_string();
@@ -98,14 +101,45 @@ pub fn plot(series: Vec<f64>, mut config: Config) -> String {
 
     let mut y0 = ((series_inner[0] * ratio).round() - min2) as i32;
 
-    let mut y1 : i32;
-    plot[(rows-y0) as usize][(config.offset-1) as usize] = "┼".to_string();
+    let mut y1: i32;
+    plot[(rows - y0) as usize][(config.offset - 1) as usize] = "┼".to_string();
 
-    for x in 0..series_inner.len()-1 {
-        //y0 = series_inner[x + 0] * ratio
+    for x in 0..series_inner.len() - 1 {
+        y0 = ((series_inner[x + 0] * ratio).round() - int_min2 as f64) as i32;
+        y1 = ((series_inner[x + 1] * ratio).round() - int_min2 as f64) as i32;
+
+        if y0 == y1 {
+            plot[(rows - y0) as usize][(x as u32 + config.offset) as usize] = "─".to_string();
+        } else {
+            if y0 > y1 {
+                plot[(rows - y1) as usize][(x as u32 + config.offset) as usize] = "╰".to_string();
+                plot[(rows - y0) as usize][(x as u32 + config.offset) as usize] = "╮".to_string();
+            } else {
+                plot[(rows - y1) as usize][(x as u32 + config.offset) as usize] = "╭".to_string();
+                plot[(rows - y0) as usize][(x as u32 + config.offset) as usize] = "╯".to_string();
+            }
+        }
+
+        let start = f64::min(y0 as f64, y1 as f64) as i32 + 1;
+        let end = f64::max(y0 as f64, y1 as f64) as i32;
+
+        for y in start..end {
+            plot[(rows - y) as usize][(x as u32 + config.offset) as usize] = "│".to_string();
+        }
     }
 
-    "".to_string()
+    let mut res: String = plot
+        .into_iter()
+        .map(|line| line.join(""))
+        .collect::<Vec<String>>()
+        .join("\n");
+    res.pop();
+    if !config.caption.is_empty() {
+        res.push_str("\n");
+        res.push_str(std::iter::repeat(" ").take(config.offset as usize + max_label_width + 2).collect::<String>().as_ref());
+        res.push_str(config.caption.as_ref());
+    }
+    res
 }
 
 fn interpolate(series: Vec<f64>, count: u32) -> Vec<f64> {
@@ -143,8 +177,105 @@ fn min_max(series: &Vec<f64>) -> (f64, f64) {
 
 #[cfg(test)]
 mod tests {
+
     #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
+    fn test_min_max() {
+        assert_eq!(
+            (-2f64, 11f64),
+            crate::min_max(&vec![
+                2f64, 1f64, 1f64, 2f64, -2f64, 5f64, 7f64, 11f64, 3f64, 7f64, 1f64
+            ])
+        );
+    }
+    #[test]
+    fn test_ones() {
+        let res = crate::plot(
+            vec![1f64, 1f64, 1f64, 1f64, 1f64],
+            crate::Config {
+                width: 0,
+                height: 0,
+                offset: 0,
+                caption: "".to_string(),
+            },
+        );
+        assert_eq!(res, " 1.00 ┼────");
+    }
+
+    #[test]
+    fn test_zeros() {
+        let res = crate::plot(
+            vec![0f64, 0f64, 0f64, 0f64, 0f64],
+            crate::Config {
+                width: 0,
+                height: 0,
+                offset: 0,
+                caption: "".to_string(),
+            },
+        );
+        assert_eq!(res, " 0.00 ┼────");
+    }
+
+    #[test]
+    fn third_test() {
+        let res = crate::plot(
+            vec![
+                2f64, 1f64, 1f64, 2f64, -2f64, 5f64, 7f64, 11f64, 3f64, 7f64, 1f64,
+            ],
+            crate::Config {
+                width: 0,
+                height: 0,
+                offset: 0,
+                caption: "".to_string(),
+            },
+        );
+        assert_eq!(
+            res,
+            " 11.00 ┤      ╭╮   
+ 10.00 ┤      ││   
+  9.00 ┼      ││   
+  8.00 ┤      ││   
+  7.00 ┤     ╭╯│╭╮ 
+  6.00 ┤     │ │││ 
+  5.00 ┤    ╭╯ │││ 
+  4.00 ┤    │  │││ 
+  3.00 ┤    │  ╰╯│ 
+  2.00 ┼╮ ╭╮│    │ 
+  1.00 ┤╰─╯││    ╰ 
+  0.00 ┤   ││      
+ -1.00 ┤   ││      
+ -2.00 ┤   ╰╯     "
+        );
+    }
+
+    #[test]
+    fn fourth_test(){
+         let res = crate::plot(
+            vec![
+                2f64, 1f64, 1f64, 2f64, -2f64, 5f64, 7f64, 11f64, 3f64, 7f64, 4f64, 5f64, 6f64, 9f64, 4f64, 0f64, 6f64, 1f64, 5f64, 3f64, 6f64, 2f64
+            ],
+            crate::Config {
+                width: 0,
+                height: 0,
+                offset: 0,
+                caption: "Plot using asciigraph.".to_string(),
+            },
+        );
+
+        assert_eq!(
+            res," 11.00 ┤      ╭╮              
+ 10.00 ┤      ││              
+  9.00 ┼      ││    ╭╮        
+  8.00 ┤      ││    ││        
+  7.00 ┤     ╭╯│╭╮  ││        
+  6.00 ┤     │ │││ ╭╯│ ╭╮  ╭╮ 
+  5.00 ┤    ╭╯ │││╭╯ │ ││╭╮││ 
+  4.00 ┤    │  ││╰╯  ╰╮││││││ 
+  3.00 ┤    │  ╰╯     ││││╰╯│ 
+  2.00 ┼╮ ╭╮│         ││││  ╰ 
+  1.00 ┤╰─╯││         ││╰╯    
+  0.00 ┤   ││         ╰╯      
+ -1.00 ┤   ││                 
+ -2.00 ┤   ╰╯                
+          Plot using asciigraph.")
     }
 }
