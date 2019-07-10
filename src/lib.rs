@@ -1,6 +1,6 @@
-use std::io::Read;
 use std::vec::Vec;
 
+#[derive(Default)]
 pub struct Config {
     width: u32,
     height: u32,
@@ -9,17 +9,16 @@ pub struct Config {
 }
 
 pub fn plot(series: Vec<f64>, mut config: Config) -> String {
-    let mut series_inner = Vec::<f64>::new();
-    if config.width > 0 {
-        series_inner = interpolate(series, config.width);
+    let series_inner = if config.width > 0 {
+        interpolate(series, config.width)
     } else {
-        series_inner = series;
-    }
+        series
+    };
 
     let (min, max) = min_max(&series_inner);
 
     let interval = (max - min).abs();
-    if config.height <= 0 {
+    if config.height == 0 {
         if interval as i32 <= 0 {
             config.height = (interval as i32 * 10i32.pow(-interval.log10().ceil() as u32)) as u32;
         } else {
@@ -27,12 +26,12 @@ pub fn plot(series: Vec<f64>, mut config: Config) -> String {
         }
     }
 
-    if config.offset <= 0 {
+    if config.offset == 0 {
         config.offset = 3;
     }
 
     let ratio = if interval != 0f64 {
-        config.height as f64 / interval
+        f64::from(config.height) / interval
     } else {
         1f64
     };
@@ -43,24 +42,25 @@ pub fn plot(series: Vec<f64>, mut config: Config) -> String {
     let int_min2 = min2 as i32;
     let int_max2 = max2 as i32;
 
-    let rows = ((int_max2 - int_min2) as f64).abs() as i32;
+    let rows = f64::from(int_max2 - int_min2).abs() as i32;
     let width = series_inner.len() + config.offset as usize;
 
     let mut plot: Vec<Vec<String>> = Vec::new();
 
-    for i in 0..rows + 1 {
+    for _i in 0..=rows {
         let mut line = Vec::<String>::new();
-        for j in 0..width {
+        for _j in 0..width {
             line.push(" ".to_string());
         }
         plot.push(line);
     }
 
     let mut precision = 2;
-    let mut log_maximum = f64::max(max.abs(), min.abs()).log10();
-    if min == 0f64 && min == 0f64 {
-        log_maximum = -1f64;
-    }
+    let log_maximum = if min == 0f64 && max == 0f64 {
+        -1f64
+    } else {
+        f64::max(max.abs(), min.abs()).log10()
+    };
 
     if log_maximum < 0f64 {
         if log_maximum % 1f64 != 0f64 {
@@ -77,11 +77,11 @@ pub fn plot(series: Vec<f64>, mut config: Config) -> String {
 
     let max_label_width = usize::max(max_number_label_length, min_number_label_length);
 
-    for y in int_min2..int_max2 + 1 {
+    for y in int_min2..=int_max2 {
         let magnitude = if rows > 0 {
-            max - (y - int_min2) as f64 * interval / rows as f64
+            max - f64::from(y - int_min2) * interval / f64::from(rows)
         } else {
-            y as f64
+            f64::from(y)
         };
         let label = format!(
             "{number:LW$.PREC$}",
@@ -90,7 +90,7 @@ pub fn plot(series: Vec<f64>, mut config: Config) -> String {
             number = magnitude
         );
         let w = (y - int_min2) as usize;
-        let h = f64::max(config.offset as f64 - label.len() as f64, 0f64) as usize;
+        let h = f64::max(f64::from(config.offset) - label.len() as f64, 0f64) as usize;
         plot[w][h] = label;
         if y == 0 {
             plot[w][(config.offset - 1) as usize] = "┼".to_string();
@@ -105,23 +105,21 @@ pub fn plot(series: Vec<f64>, mut config: Config) -> String {
     plot[(rows - y0) as usize][(config.offset - 1) as usize] = "┼".to_string();
 
     for x in 0..series_inner.len() - 1 {
-        y0 = ((series_inner[x + 0] * ratio).round() - int_min2 as f64) as i32;
-        y1 = ((series_inner[x + 1] * ratio).round() - int_min2 as f64) as i32;
+        y0 = ((series_inner[x] * ratio).round() - f64::from(int_min2)) as i32;
+        y1 = ((series_inner[x + 1] * ratio).round() - f64::from(int_min2)) as i32;
 
         if y0 == y1 {
             plot[(rows - y0) as usize][(x as u32 + config.offset) as usize] = "─".to_string();
+        } else if y0 > y1 {
+            plot[(rows - y1) as usize][(x as u32 + config.offset) as usize] = "╰".to_string();
+            plot[(rows - y0) as usize][(x as u32 + config.offset) as usize] = "╮".to_string();
         } else {
-            if y0 > y1 {
-                plot[(rows - y1) as usize][(x as u32 + config.offset) as usize] = "╰".to_string();
-                plot[(rows - y0) as usize][(x as u32 + config.offset) as usize] = "╮".to_string();
-            } else {
-                plot[(rows - y1) as usize][(x as u32 + config.offset) as usize] = "╭".to_string();
-                plot[(rows - y0) as usize][(x as u32 + config.offset) as usize] = "╯".to_string();
-            }
+            plot[(rows - y1) as usize][(x as u32 + config.offset) as usize] = "╭".to_string();
+            plot[(rows - y0) as usize][(x as u32 + config.offset) as usize] = "╯".to_string();
         }
 
-        let start = f64::min(y0 as f64, y1 as f64) as i32 + 1;
-        let end = f64::max(y0 as f64, y1 as f64) as i32;
+        let start = f64::min(f64::from(y0), f64::from(y1)) as i32 + 1;
+        let end = f64::max(f64::from(y0), f64::from(y1)) as i32;
 
         for y in start..end {
             plot[(rows - y) as usize][(x as u32 + config.offset) as usize] = "│".to_string();
@@ -136,7 +134,12 @@ pub fn plot(series: Vec<f64>, mut config: Config) -> String {
     res.pop();
     if !config.caption.is_empty() {
         res.push_str("\n");
-        res.push_str(std::iter::repeat(" ").take(config.offset as usize + max_label_width + 2).collect::<String>().as_ref());
+        res.push_str(
+            std::iter::repeat(" ")
+                .take(config.offset as usize + max_label_width + 2)
+                .collect::<String>()
+                .as_ref(),
+        );
         res.push_str(config.caption.as_ref());
     }
     res
@@ -144,10 +147,10 @@ pub fn plot(series: Vec<f64>, mut config: Config) -> String {
 
 fn interpolate(series: Vec<f64>, count: u32) -> Vec<f64> {
     let mut result = Vec::new();
-    let spring_factor = (series.len() - 1) as f64 / (count - 1) as f64;
+    let spring_factor = (series.len() - 1) as f64 / f64::from(count - 1);
     result.push(series[0]);
     for i in 1..count - 1 {
-        let spring = i as f64 * spring_factor;
+        let spring = f64::from(i) * spring_factor;
         let before = spring.floor();
         let after = spring.ceil();
         let at_point = spring - before;
@@ -165,7 +168,7 @@ fn linear_interpolate(before: f64, after: f64, at_point: f64) -> f64 {
     before + (after - before) * at_point
 }
 
-fn min_max(series: &Vec<f64>) -> (f64, f64) {
+fn min_max(series: &[f64]) -> (f64, f64) {
     let min = series
         .iter()
         .fold(std::f64::MAX, |accu, &x| if x < accu { x } else { accu });
@@ -189,29 +192,13 @@ mod tests {
     }
     #[test]
     fn test_ones() {
-        let res = crate::plot(
-            vec![1f64, 1f64, 1f64, 1f64, 1f64],
-            crate::Config {
-                width: 0,
-                height: 0,
-                offset: 0,
-                caption: "".to_string(),
-            },
-        );
+        let res = crate::plot(vec![1f64, 1f64, 1f64, 1f64, 1f64], crate::Config::default());
         assert_eq!(res, " 1.00 ┼────");
     }
 
     #[test]
     fn test_zeros() {
-        let res = crate::plot(
-            vec![0f64, 0f64, 0f64, 0f64, 0f64],
-            crate::Config {
-                width: 0,
-                height: 0,
-                offset: 0,
-                caption: "".to_string(),
-            },
-        );
+        let res = crate::plot(vec![0f64, 0f64, 0f64, 0f64, 0f64], crate::Config::default());
         assert_eq!(res, " 0.00 ┼────");
     }
 
@@ -221,12 +208,7 @@ mod tests {
             vec![
                 2f64, 1f64, 1f64, 2f64, -2f64, 5f64, 7f64, 11f64, 3f64, 7f64, 1f64,
             ],
-            crate::Config {
-                width: 0,
-                height: 0,
-                offset: 0,
-                caption: "".to_string(),
-            },
+            crate::Config::default(),
         );
         assert_eq!(
             res,
@@ -248,10 +230,11 @@ mod tests {
     }
 
     #[test]
-    fn fourth_test(){
-         let res = crate::plot(
+    fn fourth_test() {
+        let res = crate::plot(
             vec![
-                2f64, 1f64, 1f64, 2f64, -2f64, 5f64, 7f64, 11f64, 3f64, 7f64, 4f64, 5f64, 6f64, 9f64, 4f64, 0f64, 6f64, 1f64, 5f64, 3f64, 6f64, 2f64
+                2f64, 1f64, 1f64, 2f64, -2f64, 5f64, 7f64, 11f64, 3f64, 7f64, 4f64, 5f64, 6f64,
+                9f64, 4f64, 0f64, 6f64, 1f64, 5f64, 3f64, 6f64, 2f64,
             ],
             crate::Config {
                 width: 0,
@@ -262,7 +245,8 @@ mod tests {
         );
 
         assert_eq!(
-            res," 11.00 ┤      ╭╮              
+            res,
+            " 11.00 ┤      ╭╮              
  10.00 ┤      ││              
   9.00 ┼      ││    ╭╮        
   8.00 ┤      ││    ││        
@@ -276,6 +260,7 @@ mod tests {
   0.00 ┤   ││         ╰╯      
  -1.00 ┤   ││                 
  -2.00 ┤   ╰╯                
-          Plot using asciigraph.")
+          Plot using asciigraph."
+        )
     }
 }
