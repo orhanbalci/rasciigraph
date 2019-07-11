@@ -1,7 +1,12 @@
 [package]
 name = "rasciigraph"
 version = "0.1.0"
-authors = ["orhanbalci@gmail.com <orhanbalci@gmail.com>"]
 edition = "2018"
+authors = ["Orhan Balci <orhanbalci@gmail.com>"]
+description="Utility function to plot ascii graphs"
+homepage="https://github.com/orhanbalci"
+repository="https://github.com/orhanbalci/rasciigraph.git"
+keywords=["ascii","graph"]
+license="MIT"
 
 [dependencies]
