@@ -1,6 +1,6 @@
 [package]
 name = "rasciigraph"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2018"
 authors = ["Orhan Balci <orhanbalci@gmail.com>"]
 description="Utility function to plot ascii graphs"
