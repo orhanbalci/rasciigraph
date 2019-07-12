@@ -9,22 +9,22 @@ pub struct Config {
 }
 
 impl Config {
-    fn with_caption(mut self, caption: String) -> Self {
+    pub fn with_caption(mut self, caption: String) -> Self {
         self.caption = caption;
         self
     }
 
-    fn with_height(mut self, height: u32) -> Self {
+    pub fn with_height(mut self, height: u32) -> Self {
         self.height = height;
         self
     }
 
-    fn with_width(mut self, width: u32) -> Self {
+    pub fn with_width(mut self, width: u32) -> Self {
         self.width = width;
         self
     }
 
-    fn with_offset(mut self, offset: u32) -> Self {
+    pub fn with_offset(mut self, offset: u32) -> Self {
         self.offset = offset;
         self
     }
