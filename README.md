@@ -5,7 +5,7 @@ Tiny Rust library to draw pretty line graphs using ascii characters.
 Add this to your Cargo.toml
 ``` toml
 [dependencies]
-rasciigraph = "0.1.0"
+rasciigraph = "0.1.1"
 ```
 Add this line of code to top of your source code
 ``` rust
@@ -20,10 +20,28 @@ use rasciigraph::{plot, Config}
 # Examples
 This code 
 ``` rust
- println!("{}", plot(vec![0.0, 0.0, 0.0, 0.0, 1.5, 0.0, 0.0, -0.5, 9.0, -3.0, 0.0, 0.0, 1.0, 2.0, 1.0, 0.0, 0.0, 0.0, 0.0,
-				0.0, 0.0, 0.0, 0.0, 1.5, 0.0, 0.0, -0.5, 8.0, -3.0, 0.0, 0.0, 1.0, 2.0, 1.0, 0.0, 0.0, 0.0, 0.0,
-				0.0, 0.0, 0.0, 0.0, 1.5, 0.0, 0.0, -0.5, 10.0, -3.0, 0.0, 0.0, 1.0, 2.0, 1.0, 0.0, 0.0, 0.0, 0.0],
-        Config::default().with_offset(10).with_height(10).with_caption("I'm a doctor, not an engineer.".to_string()));
+extern crate rasciigraph;
+
+use rasciigraph::{plot, Config};
+
+fn main() {
+    println!(
+        "{}",
+        plot(
+            vec![
+                0.0, 0.0, 0.0, 0.0, 1.5, 0.0, 0.0, -0.5, 9.0, -3.0, 0.0, 0.0, 1.0, 2.0, 1.0, 0.0,
+                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.5, 0.0, 0.0, -0.5, 8.0, -3.0, 0.0, 0.0, 1.0,
+                2.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.5, 0.0, 0.0, -0.5, 10.0, -3.0,
+                0.0, 0.0, 1.0, 2.0, 1.0, 0.0, 0.0, 0.0, 0.0
+            ],
+            Config::default()
+                .with_offset(10)
+                .with_height(10)
+                .with_caption("I'm a doctor, not an engineer.".to_string())
+        )
+    );
+}
+
 ```
 Produces an output like this
 ```
