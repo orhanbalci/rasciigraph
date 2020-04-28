@@ -8,5 +8,6 @@ homepage="https://github.com/orhanbalci"
 repository="https://github.com/orhanbalci/rasciigraph.git"
 keywords=["ascii","graph"]
 license="MIT"
+readme="README.md"
 
 [dependencies]
