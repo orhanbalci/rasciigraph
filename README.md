@@ -60,6 +60,6 @@ Produces an output like this
 ```
 
 # Acknowledgement
-This crat is rustlang port of library [asciigraph](https://github.com/guptarohit/asciigraph) written by [@guptarohit](https://github.com/guptarohit).
+This crate is rustlang port of library [asciigraph](https://github.com/guptarohit/asciigraph) written by [@guptarohit](https://github.com/guptarohit).
 
 Above library is also port of library [asciichart](https://github.com/kroitor/asciichart) written by [@kroitor](https://github.com/kroitor).
