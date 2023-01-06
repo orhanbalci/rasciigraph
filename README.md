@@ -5,7 +5,7 @@ Tiny Rust library to draw pretty line graphs using ascii characters.
 Add this to your Cargo.toml
 ``` toml
 [dependencies]
-rasciigraph = "0.1.1"
+rasciigraph = "0.2"
 ```
 Add this line of code to top of your source code
 ``` rust
@@ -57,6 +57,33 @@ Produces an output like this
  -1.70    ┤        ││                 ││                 ││         
  -3.00    ┤        ╰╯                 ╰╯                 ╰╯        
              I'm a doctor, not an engineer.
+```
+
+With 2.0 version you can also plot multi series
+``` rust
+fn main() {
+    let res = rasciigraph::plot_many(
+        vec![
+            vec![0.0f64, 1.0, 0.0],
+            vec![2.0, 3.0, 4.0, 3.0, 2.0],
+            vec![4.0, 5.0, 6.0, 7.0, 6.0, 5.0, 4.0],
+        ],
+        rasciigraph::Config::default().with_width(21),
+    );
+    print!("{}", res);
+}
+```
+
+This is the output
+```
+7.00 ┤        ╭──╮
+ 6.00 ┤    ╭───╯  ╰───╮
+ 5.00 ┤ ╭──╯          ╰──╮
+ 4.00 ┼─╯  ╭───╮         ╰─
+ 3.00 ┤ ╭──╯   ╰──╮
+ 2.00 ┼─╯         ╰──
+ 1.00 ┤ ╭───╮
+ 0.00 ┼─╯   ╰─            
 ```
 
 # Acknowledgement
