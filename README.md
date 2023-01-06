@@ -59,7 +59,7 @@ Produces an output like this
              I'm a doctor, not an engineer.
 ```
 
-With 2.0 version you can also plot multi series
+With 0.2.0 version you can also plot multi series
 ``` rust
 fn main() {
     let res = rasciigraph::plot_many(
@@ -76,7 +76,7 @@ fn main() {
 
 This is the output
 ```
-7.00 ┤        ╭──╮
+ 7.00 ┤        ╭──╮
  6.00 ┤    ╭───╯  ╰───╮
  5.00 ┤ ╭──╯          ╰──╮
  4.00 ┼─╯  ╭───╮         ╰─
