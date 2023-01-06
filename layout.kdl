@@ -1,0 +1,17 @@
+layout {
+    pane size=1 borderless=true {
+        plugin location="zellij:tab-bar"
+    }
+    pane split_direction="vertical" {
+        pane edit="roughr/src/lib.rs" size="65%"
+        pane split_direction="horizontal"{
+            pane command="cargo" {
+                args "test"
+            }
+            pane
+        }
+    }
+    pane size=2 borderless=true {
+        plugin location="zellij:status-bar"
+    }
+}
