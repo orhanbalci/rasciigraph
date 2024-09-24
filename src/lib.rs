@@ -3,6 +3,7 @@ use std::vec::Vec;
 use consts::{CYAN, RESET};
 
 pub mod consts;
+pub mod plot;
 
 #[derive(Default)]
 pub struct Config {
