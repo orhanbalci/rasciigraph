@@ -1,5 +1,7 @@
 use std::cmp::{max, min};
 
+use crate::consts::colors::{RESET, WHITE};
+
 // Define the Config struct
 #[derive(Clone)]
 pub struct Config {
@@ -11,7 +13,7 @@ const SYMBOLS: &[&str] = &["┼", "┤", "╶", "╴", "─", "╰", "╭", "╮
 impl Default for Config {
     fn default() -> Self {
         Self {
-            color: "31".to_string(),
+            color: WHITE.to_string(),
         }
     }
 }
@@ -36,7 +38,7 @@ impl Series {
 
 // Function to apply color to a string (symbol)
 pub fn colored(s: &str, color: &str) -> String {
-    format!("\x1b[{}m{}\x1b[0m", color, s)
+    format!("\x1b[{}m{}\x1b[{}m", color, s, RESET)
 }
 
 // Main plotting function
