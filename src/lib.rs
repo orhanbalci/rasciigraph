@@ -1,5 +1,9 @@
 use std::vec::Vec;
 
+use consts::{CYAN, RESET};
+
+pub mod consts;
+
 #[derive(Default)]
 pub struct Config {
     width: u32,
@@ -200,9 +204,7 @@ pub fn plot_many(mut series: Vec<Vec<f64>>, mut config: Config) -> String {
     if !config.caption.is_empty() {
         res.push('\n');
         res.push_str(
-            std::iter::repeat(" ")
-                .take(config.offset as usize + max_label_width + 2)
-                .collect::<String>()
+            " ".repeat(config.offset as usize + max_label_width + 2)
                 .as_ref(),
         );
         res.push_str(config.caption.as_ref());
