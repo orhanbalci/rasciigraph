@@ -1,11 +1,48 @@
 use std::vec::Vec;
 
-#[derive(Default)]
+#[cfg(feature = "color")]
+use colored::Color;
+#[cfg(feature = "color")]
+use colored::ColoredString;
+#[cfg(feature = "color")]
+use colored::Colorize;
+
 pub struct Config {
     width: u32,
     height: u32,
     offset: u32,
     caption: String,
+    #[cfg(feature = "color")]
+    caption_color: Color,
+    #[cfg(feature = "color")]
+    axis_color: Color,
+    #[cfg(feature = "color")]
+    label_color: Color,
+    #[cfg(feature = "color")]
+    series_colors: Vec<Color>,
+    #[cfg(feature = "color")]
+    series_legends: Vec<String>,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Config {
+            width: 0,
+            height: 0,
+            offset: 0,
+            caption: String::new(),
+            #[cfg(feature = "color")]
+            caption_color: Color::White,
+            #[cfg(feature = "color")]
+            axis_color: Color::White,
+            #[cfg(feature = "color")]
+            label_color: Color::White,
+            #[cfg(feature = "color")]
+            series_colors: vec![],
+            #[cfg(feature = "color")]
+            series_legends: Vec::new(),
+        }
+    }
 }
 
 impl Config {
@@ -26,6 +63,36 @@ impl Config {
 
     pub fn with_offset(mut self, offset: u32) -> Self {
         self.offset = offset;
+        self
+    }
+
+    #[cfg(feature = "color")]
+    pub fn with_caption_color(mut self, color: Color) -> Self {
+        self.caption_color = color;
+        self
+    }
+
+    #[cfg(feature = "color")]
+    pub fn with_axis_color(mut self, color: Color) -> Self {
+        self.axis_color = color;
+        self
+    }
+
+    #[cfg(feature = "color")]
+    pub fn with_label_color(mut self, color: Color) -> Self {
+        self.label_color = color;
+        self
+    }
+
+    #[cfg(feature = "color")]
+    pub fn with_series_colors(mut self, colors: Vec<Color>) -> Self {
+        self.series_colors = colors;
+        self
+    }
+
+    #[cfg(feature = "color")]
+    pub fn with_series_legends(mut self, legends: Vec<String>) -> Self {
+        self.series_legends = legends;
         self
     }
 }
@@ -201,13 +268,226 @@ pub fn plot_many(mut series: Vec<Vec<f64>>, mut config: Config) -> String {
         res.push('\n');
         res.push_str(
             std::iter::repeat(" ")
-                .take(config.offset as usize + max_label_width + 2)
+                .take(config.offset as usize + max_label_width as usize)
                 .collect::<String>()
                 .as_ref(),
         );
+        if config.caption.len() < len_max {
+            res.push_str(
+                std::iter::repeat(" ")
+                    .take((len_max - config.caption.len()) / 2)
+                    .collect::<String>()
+                    .as_ref(),
+            );
+        }
         res.push_str(config.caption.as_ref());
     }
     res
+}
+
+#[cfg(feature = "color")]
+pub fn plot_colored(series: Vec<f64>, config: Config) -> ColoredString {
+    plot_many_colored(vec![series], config)
+}
+
+#[cfg(feature = "color")]
+pub fn plot_many_colored(mut series: Vec<Vec<f64>>, mut config: Config) -> ColoredString {
+    let mut len_max = series.iter().map(|s| s.len()).max().unwrap_or(0);
+    if config.width > 0 {
+        series.iter_mut().for_each(|s| {
+            if s.len() < len_max {
+                s.extend(vec![f64::NAN].repeat(len_max - s.len()))
+            }
+            *s = interpolate(s, config.width);
+        });
+        len_max = config.width as usize;
+    }
+
+    let mut min = f64::MAX;
+    let mut max = f64::MIN;
+
+    (min, max) = series.iter().map(|s| min_max(s)).fold(
+        (min, max),
+        |(current_min, current_max), (next_min, next_max)| {
+            (
+                f64::min(next_min, current_min),
+                f64::max(next_max, current_max),
+            )
+        },
+    );
+
+    let interval = (max - min).abs();
+    if config.height == 0 {
+        if interval == 0f64 {
+            config.height = 3;
+        } else if interval <= 1f64 {
+            config.height =
+                (interval * f64::from(10i32.pow((-interval.log10()).ceil() as u32))) as u32;
+        } else {
+            config.height = interval as u32;
+        }
+    }
+
+    if config.offset == 0 {
+        config.offset = 3;
+    }
+
+    let ratio = if interval != 0f64 {
+        f64::from(config.height) / interval
+    } else {
+        1f64
+    };
+
+    let min2 = (min * ratio).round();
+    let max2 = (max * ratio).round();
+
+    let int_min2 = min2 as i32;
+    let int_max2 = max2 as i32;
+
+    let rows = f64::from(int_max2 - int_min2).abs() as i32;
+    let width = len_max as u32 + config.offset;
+
+    let mut plot: Vec<Vec<ColoredString>> = Vec::new();
+
+    for _i in 0..=rows {
+        let mut line = Vec::<ColoredString>::new();
+        for _j in 0..width {
+            line.push(" ".to_string().into());
+        }
+        plot.push(line);
+    }
+
+    let mut precision = 2;
+    let log_maximum = if min == 0f64 && max == 0f64 {
+        -1f64
+    } else {
+        f64::max(max.abs(), min.abs()).log10()
+    };
+
+    if log_maximum < 0f64 {
+        if log_maximum % 1f64 != 0f64 {
+            precision += log_maximum.abs() as i32;
+        } else {
+            precision += (log_maximum.abs() - 1f64) as i32;
+        }
+    } else if log_maximum > 2f64 {
+        precision = 0;
+    }
+
+    let max_number_label_length = format!("{:.*}", precision as usize, max).len();
+    let min_number_label_length = format!("{:.*}", precision as usize, min).len();
+
+    let max_label_width = usize::max(max_number_label_length, min_number_label_length);
+
+    for y in int_min2..=int_max2 {
+        let magnitude = if rows > 0 {
+            max - f64::from(y - int_min2) * interval / f64::from(rows)
+        } else {
+            f64::from(y)
+        };
+        let label = format!(
+            "{number:LW$.PREC$}",
+            LW = max_label_width + 1,
+            PREC = precision as usize,
+            number = magnitude
+        );
+        let w = (y - int_min2) as usize;
+        let h = f64::max(f64::from(config.offset) - label.len() as f64, 0f64) as usize;
+        plot[w][h] = label.color(config.axis_color);
+        plot[w][(config.offset - 1) as usize] = "┤".to_string().color(config.axis_color);
+    }
+
+    for (i, series_inner) in series.iter().enumerate() {
+        let mut y0;
+        let mut y1;
+        if !series_inner[0].is_nan() {
+            y0 = ((series_inner[0] * ratio).round() - min2) as i32;
+            plot[(rows - y0) as usize][(config.offset - 1) as usize] =
+                "┼".to_string().color(config.axis_color);
+        }
+
+        for x in 0..series_inner.len() - 1 {
+            if series_inner[x].is_nan() && series_inner[x + 1].is_nan() {
+                continue;
+            }
+            if series_inner[x + 1].is_nan() && !series_inner[x].is_nan() {
+                y0 = ((series_inner[x] * ratio).round() - f64::from(int_min2)) as i32;
+                plot[(rows - y0) as usize][(x as u32 + config.offset) as usize] =
+                    "─".to_string().color(config.series_colors[i]);
+                continue;
+            }
+            if series_inner[x].is_nan() && !series_inner[x + 1].is_nan() {
+                y1 = ((series_inner[x + 1] * ratio).round() - f64::from(int_min2)) as i32;
+                plot[(rows - y1) as usize][(x as u32 + config.offset) as usize] =
+                    "─".to_string().color(config.series_colors[i]);
+                continue;
+            }
+            y0 = ((series_inner[x] * ratio).round() - f64::from(int_min2)) as i32;
+            y1 = ((series_inner[x + 1] * ratio).round() - f64::from(int_min2)) as i32;
+
+            if y0 == y1 {
+                plot[(rows - y0) as usize][(x as u32 + config.offset) as usize] =
+                    "─".to_string().color(config.series_colors[i]);
+            } else {
+                if y0 > y1 {
+                    plot[(rows - y1) as usize][(x as u32 + config.offset) as usize] =
+                        "╰".to_string().color(config.series_colors[i]);
+                    plot[(rows - y0) as usize][(x as u32 + config.offset) as usize] =
+                        "╮".to_string().color(config.series_colors[i]);
+                } else {
+                    plot[(rows - y1) as usize][(x as u32 + config.offset) as usize] =
+                        "╭".to_string().color(config.series_colors[i]);
+                    plot[(rows - y0) as usize][(x as u32 + config.offset) as usize] =
+                        "╯".to_string().color(config.series_colors[i]);
+                }
+
+                let start = f64::min(f64::from(y0), f64::from(y1)) as i32 + 1;
+                let end = f64::max(f64::from(y0), f64::from(y1)) as i32;
+
+                for y in start..end {
+                    plot[(rows - y) as usize][(x as u32 + config.offset) as usize] =
+                        "│".to_string().color(config.series_colors[i]);
+                }
+            }
+        }
+    }
+
+    let mut res: String = plot
+        .into_iter()
+        .map(|line| line.into_iter().map(|s| s.to_string()).collect::<String>())
+        .collect::<Vec<String>>()
+        .join("\n");
+
+    //res.pop();
+
+    let mut caption = String::new();
+
+    if !config.caption.is_empty() {
+        caption.push('\n');
+        caption.push_str(
+            std::iter::repeat(" ")
+                .take(config.offset as usize + max_label_width as usize)
+                .collect::<String>()
+                .as_ref(),
+        );
+        if config.caption.len() < len_max {
+            caption.push_str(
+                std::iter::repeat(" ")
+                    .take((len_max - config.caption.len()) / 2)
+                    .collect::<String>()
+                    .as_ref(),
+            );
+        }
+        caption.push_str(
+            config
+                .caption
+                .color(config.caption_color)
+                .to_string()
+                .as_ref(),
+        );
+    }
+    res.push_str(caption.as_ref());
+    res.into()
 }
 
 fn interpolate(series: &[f64], count: u32) -> Vec<f64> {
@@ -295,7 +575,7 @@ mod tests {
   0.00 ┤   ││         ╰╯      
  -1.00 ┤   ││                 
  -2.00 ┤   ╰╯                
-          Plot using asciigraph.");
+        Plot using asciigraph.");
 
     graph_eq!(test_five ? [ 2, 1, 1, 2, -2, 5, 7, 11, 3, 7, 4, 5, 6, 9, 4, 0, 6, 1, 5, 3, 6, 2] ? 
                 crate::Config::default().with_caption("Plot using asciigraph.".to_string()) 
@@ -313,14 +593,14 @@ mod tests {
   0.00 ┤   ││         ╰╯      
  -1.00 ┤   ││                 
  -2.00 ┤   ╰╯                
-          Plot using asciigraph." );
+        Plot using asciigraph." );
 
     graph_eq!(test_six ? [0.2, 0.1, 0.2, 2, -0.9, 0.7, 0.91, 0.3, 0.7, 0.4, 0.5] ? 
     crate::Config::default().with_caption("Plot using asciigraph.".to_string())
     => "  2.00 ┤  ╭╮ ╭╮    
   0.55 ┼──╯│╭╯╰─── 
  -0.90 ┤   ╰╯     
-          Plot using asciigraph." );
+        Plot using asciigraph." );
 
     graph_eq!(test_seven ? [2, 1, 1, 2, -2, 5, 7, 11, 3, 7, 1] ? 
     crate::Config::default().with_height(4).with_offset(3)
@@ -375,7 +655,7 @@ mod tests {
  0.23 ┤ ╰╮ ╭╯   ╰╮│    ╰╮╭╯   ╰╮ ╭╯  
  0.20 ┤  ╰╮│     ╰╯     ╰╯     │╭╯   
  0.16 ┤   ╰╯                   ╰╯   
-         Plot with custom height & width."
+       Plot with custom height & width."
     );
 
     graph_eq!(test_twelve ? [0, 0, 0, 0, 1.5, 0, 0, -0.5, 9, -3, 0, 0, 1, 2, 1, 0, 0, 0, 0,
@@ -393,7 +673,7 @@ mod tests {
      -0.40    ┼───╯╰──╯│╭─╯  ╰───────╯╰──╯│╭─╯  ╰───────╯╰──╯│╭─╯  ╰─── 
      -1.70    ┤        ││                 ││                 ││         
      -3.00    ┤        ╰╯                 ╰╯                 ╰╯        
-                 I'm a doctor, not an engineer.");
+                            I'm a doctor, not an engineer.");
 
     graph_eq!(test_thirteen ? [-5, -2, -3, -4, 0, -5, -6, -7, -8, 0, -9, -3, -5, -2, -9, -3, -1]
     => "  0.00 ┤   ╭╮   ╭╮       
