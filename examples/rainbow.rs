@@ -27,6 +27,7 @@ fn main() {
         .with_caption("Concentric Semi-Circles".to_string())
         .with_caption_color(Color::Blue)
         .with_axis_color(Color::Green)
+        .with_series_legends(vec!["gemini".into(), "chatgpt".into()])
         .with_series_colors(vec![
             Color::Red,
             Color::Yellow,

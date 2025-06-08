@@ -286,6 +286,53 @@ pub fn plot_many(mut series: Vec<Vec<f64>>, mut config: Config) -> String {
 }
 
 #[cfg(feature = "color")]
+fn create_legend_item(text: &str, color: colored::Color) -> (String, usize) {
+    use colored::Colorize;
+
+    let colored_box = "■".color(color).to_string(); // Colored box
+    let default_color = "".normal().to_string(); // Reset to default color
+    let legend_item = format!("{}{} {}", colored_box, default_color, text);
+
+    // Calculate the length of the legend item (accounting for the box and space)
+    let legend_length = text.chars().count() + 2; // 2 for the box and space
+
+    (legend_item, legend_length)
+}
+
+#[cfg(feature = "color")]
+fn add_legends(lines: &mut String, config: &Config, len_max: usize, left_pad: usize) {
+    use std::iter;
+
+    lines.push_str("\n\n");
+    lines.push_str(&iter::repeat(" ").take(left_pad).collect::<String>());
+
+    let mut legends_text = String::new();
+    let mut legends_text_len = 0;
+    let right_pad = 3;
+
+    for (i, text) in config.series_legends.iter().enumerate() {
+        let (item, item_len) = create_legend_item(text, config.series_colors[i]);
+        legends_text.push_str(&item);
+        legends_text_len += item_len;
+
+        if i < config.series_legends.len() - 1 {
+            legends_text.push_str(&iter::repeat(" ").take(right_pad).collect::<String>());
+            legends_text_len += right_pad;
+        }
+    }
+
+    if legends_text_len < len_max {
+        lines.push_str(
+            &iter::repeat(" ")
+                .take((len_max - legends_text_len) / 2)
+                .collect::<String>(),
+        );
+    }
+
+    lines.push_str(&legends_text);
+}
+
+#[cfg(feature = "color")]
 pub fn plot_colored(series: Vec<f64>, config: Config) -> ColoredString {
     plot_many_colored(vec![series], config)
 }
@@ -487,6 +534,15 @@ pub fn plot_many_colored(mut series: Vec<Vec<f64>>, mut config: Config) -> Color
         );
     }
     res.push_str(caption.as_ref());
+
+    if config.series_legends.len() > 0 {
+        add_legends(
+            &mut res,
+            &config,
+            len_max,
+            config.offset as usize + max_label_width,
+        )
+    }
     res.into()
 }
 
